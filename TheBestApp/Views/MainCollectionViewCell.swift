@@ -11,9 +11,6 @@ class MainCollectionViewCell: UICollectionViewCell {
     
     let userImageView: UIImageView = {
         let imageView = UIImageView()
-        imageView.image = UIImage(named: "Iron man")
-        imageView.frame = CGRect(x: 0, y: 0, width: 500, height: 500)
-        imageView.contentMode = .scaleToFill
         imageView.translatesAutoresizingMaskIntoConstraints = false
         return imageView
     }()
@@ -31,7 +28,6 @@ class MainCollectionViewCell: UICollectionViewCell {
     
     private let nameLabel: UILabel = {
         let label = UILabel()
-        label.text = "NameLabellabel.contentMode = .center"
         label.textColor = .white
         label.contentMode = .center
         label.numberOfLines = 1
@@ -72,6 +68,11 @@ class MainCollectionViewCell: UICollectionViewCell {
         addSubview(nameLabel)
         addSubview(nameListTagsLabel)
     }
+    
+    func cellConfigure(model: FlickrModel) {
+        userImageView.image = model.thumbnail
+        nameLabel.text = model.title
+    }
 }
     
 //MARK: - SetConstraints
@@ -82,7 +83,9 @@ extension MainCollectionViewCell {
         
         NSLayoutConstraint.activate([
             userImageView.topAnchor.constraint(equalTo: topAnchor, constant: 5),
-            userImageView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            userImageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 5),
+            userImageView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -5),
+            userImageView.heightAnchor.constraint(equalToConstant: frame.width - 50),
             
             dateLabel.topAnchor.constraint(equalTo: userImageView.bottomAnchor, constant: 5),
             dateLabel.centerXAnchor.constraint(equalTo: userImageView.centerXAnchor),

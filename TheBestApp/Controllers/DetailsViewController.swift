@@ -9,9 +9,8 @@ import UIKit
 
 class DetailsViewController: UIViewController {
     
-    private let userImageView: UIImageView = {
+    let userImageView: UIImageView = {
         let imageView = UIImageView()
-        imageView.image = UIImage(named: "Bear")
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         return imageView
@@ -29,8 +28,6 @@ class DetailsViewController: UIViewController {
     //MARK: - SetupViews
     
     private func setupViews() {
-        
-        title = "Bear"
         view.backgroundColor = #colorLiteral(red: 0.1646832824, green: 0.1647188365, blue: 0.1646810472, alpha: 1)
         
         navigationController?.navigationBar.tintColor = .white
@@ -49,7 +46,7 @@ extension DetailsViewController {
         NSLayoutConstraint.activate([
             userImageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             userImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            userImageView.heightAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.6),
+            userImageView.heightAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.9),
             userImageView.widthAnchor.constraint(equalToConstant: view.frame.width),
         ])
     }

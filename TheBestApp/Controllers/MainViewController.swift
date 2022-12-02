@@ -31,8 +31,10 @@ class MainViewController: UIViewController {
     }()
     
     private let searchController = UISearchController()
-    
     private let idCollectionView = "idCollectionView"
+    
+    private var searchResults: [FlickrSearchResults] = []
+    private let flickrModel = Flickr()
     
     //MARK: - ViewDidLoad
 
@@ -59,17 +61,28 @@ class MainViewController: UIViewController {
     
     private func setDelegates() {
         
+        searchController.searchBar.delegate = self
+        
         collectionView.dataSource = self
         collectionView.delegate = self
+    }
+    
+    func photo(for indexPath: IndexPath) -> FlickrModel {
+        return searchResults[indexPath.section].searchResults[indexPath.row]
     }
     
     //MARK: - SetupNavigationBar
     
     private func setupNavigationBar() {
+        let titleLabel = UILabel(text: "TheBestApp",
+                                 font: UIFont.boldSystemFont(ofSize: 22),
+                                 color: #colorLiteral(red: 1, green: 1, blue: 1, alpha: 1),
+                                 line: 0)
         
         searchController.searchBar.placeholder = "Search"
         navigationItem.searchController = searchController
         navigationItem.rightBarButtonItem = sortBarButtonItem
+        navigationItem.leftBarButtonItem = UIBarButtonItem.init(customView: titleLabel)
         navigationItem.searchController?.hidesNavigationBarDuringPresentation = false
         navigationItem.backButtonTitle = ""
         navigationItem.hidesSearchBarWhenScrolling = false
@@ -100,13 +113,19 @@ class MainViewController: UIViewController {
 
 extension MainViewController: UICollectionViewDataSource {
     
-    internal func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        50
+    func numberOfSections(in collectionView: UICollectionView) -> Int {
+       return searchResults.count
+   }
+    
+    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return searchResults[section].searchResults.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: idCollectionView, for: indexPath) as?
                 MainCollectionViewCell else {return UICollectionViewCell()}
+        let flickrPhoto = photo(for: indexPath)
+        cell.cellConfigure(model: flickrPhoto)
         return cell
     }
 }
@@ -117,7 +136,11 @@ extension MainViewController: UICollectionViewDelegate {
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         
+        let photo = photo(for: indexPath)
         let detailsViewController = DetailsViewController()
+        
+        detailsViewController.userImageView.image = photo.thumbnail
+        detailsViewController.title = photo.title
         navigationController?.pushViewController(detailsViewController, animated: true)
     }
 }
@@ -125,10 +148,36 @@ extension MainViewController: UICollectionViewDelegate {
 //MARK: - UICollectionViewDelegateFlowLayout
 
 extension MainViewController: UICollectionViewDelegateFlowLayout {
+    
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout:UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         
         CGSize(width: collectionView.frame.width / 2.02,
-               height: collectionView.frame.width / 2.02)
+               height: collectionView.frame.width / 1.8)
+    }
+}
+
+//MARK: - UISearchBarDelegate
+
+extension MainViewController: UISearchBarDelegate {
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        
+        flickrModel.searchFlickr(for: searchText) { searchResults in
+            DispatchQueue.main.async {
+                
+                switch searchResults {
+                case .failure(let error):
+                    print("Error searching: \(error)")
+                case .success(let results):
+                    print("""
+                    Found \(results.searchResults.count) \
+                    matching \(results.searchTerm)
+                    """)
+                    self.searchResults.insert(results, at: 0)
+                    self.collectionView.reloadData()
+                }
+            }
+        }
     }
 }
 
