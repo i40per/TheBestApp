@@ -248,9 +248,13 @@ extension MainViewController: UICollectionViewDelegateFlowLayout {
 extension MainViewController: UISearchBarDelegate {
     
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        self.tagsArray = searchBar.text!.components(separatedBy: " ")
+        if searchBar.isFirstResponder {
+            guard let text = searchBar.text else { return }
+            self.tagsArray = text.components(separatedBy: " ")
+        }
         
         if searchText.isEmpty {
+            removeAllAndReload()
             self.view.endEditing(true)
             return
         }
@@ -262,6 +266,7 @@ extension MainViewController: UISearchBarDelegate {
     
     func searchBarShouldEndEditing(_ searchBar: UISearchBar) -> Bool {
         true
+        
     }
     
     func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
