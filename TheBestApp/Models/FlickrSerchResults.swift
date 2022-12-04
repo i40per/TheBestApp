@@ -7,8 +7,18 @@
 
 import Foundation
 
-struct FlickrSearchResults {
+struct FlickrSearch: Codable {
+    let items: [Items]?
+}
+
+struct Items: Codable {
     
-    let searchTerm: String
-    let searchResults: [FlickrModel]
+    let title: String?
+    let media: Media?
+    let published: String?
+    let tags: String?
+}
+
+struct Media: Codable {
+    let m: String?
 }

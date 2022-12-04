@@ -9,18 +9,22 @@ import UIKit
 
 class DetailsViewController: UIViewController {
     
-    let userImageView: UIImageView = {
+    private let userImageView: UIImageView = {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         return imageView
     }()
     
+    var item: Items? = nil
+    private var imageCache = NSCache<AnyObject, AnyObject>()
+    
     //MARK: - ViewDidLoad
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        setItem()
         setupViews()
         setConstraints()
     }
@@ -34,6 +38,16 @@ class DetailsViewController: UIViewController {
         navigationController?.navigationBar.standardAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
     
         view.addSubview(userImageView)
+    }
+    
+    func setItem() {
+        guard
+            let item = item,
+            let imageUrl = item.media?.m
+        else { return }
+        
+        self.title = item.title
+        self.userImageView.downloadImageWith(imageCache: imageCache, urlString: imageUrl) {}
     }
 }
 

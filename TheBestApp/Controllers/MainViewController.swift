@@ -23,7 +23,7 @@ class MainViewController: UIViewController {
     }()
     
     private lazy var sortBarButtonItem: UIBarButtonItem = {
-       
+        
         return UIBarButtonItem(image: UIImage(systemName: "line.3.horizontal.decrease.circle"),
                                 style: .plain,
                                 target: self,
@@ -33,8 +33,11 @@ class MainViewController: UIViewController {
     private let searchController = UISearchController()
     private let idCollectionView = "idCollectionView"
     
-    private var searchResults: [FlickrSearchResults] = []
-    private let flickrModel = Flickr()
+    private var tagsArray: [String] = []
+    
+    private var viewModel: MainViewModel?
+    private var counter: Int = 0
+    private var isPaging = true
     
     //MARK: - ViewDidLoad
 
@@ -51,9 +54,12 @@ class MainViewController: UIViewController {
     
     private func setupViews() {
         
-        view.backgroundColor = #colorLiteral(red: 0.09410236031, green: 0.09412645549, blue: 0.09410081059, alpha: 1)
+        let networkManager = NetworkManager()
+        self.viewModel = MainViewModel(networkManager: networkManager)
         
+        view.backgroundColor = #colorLiteral(red: 0.09410236031, green: 0.09412645549, blue: 0.09410081059, alpha: 1)
         view.addSubview(collectionView)
+        
         collectionView.register(MainCollectionViewCell.self, forCellWithReuseIdentifier: idCollectionView)
     }
     
@@ -61,25 +67,52 @@ class MainViewController: UIViewController {
     
     private func setDelegates() {
         
-        searchController.searchBar.delegate = self
-        
         collectionView.dataSource = self
         collectionView.delegate = self
     }
     
-    func photo(for indexPath: IndexPath) -> FlickrModel {
-        return searchResults[indexPath.section].searchResults[indexPath.row]
+    private func removeAllAndReload() {
+        
+        self.counter = 0
+        if let viewModel = viewModel {
+            viewModel.items.removeAll()
+            viewModel.sortedItems.removeAll()
+            DispatchQueue.main.async { [weak self] in
+                self?.searchController.searchBar.text = ""
+                self?.collectionView.reloadData()
+                self?.view.endEditing(true)
+            }
+        }
+    }
+    
+    private func loadMoreData() {
+        
+        if let viewModel = viewModel {
+            viewModel.loadImageWhenTextChanges(tagsArray[counter]) {
+                DispatchQueue.main.async { [weak self] in
+                    self?.collectionView.reloadData()
+                    self?.counter += 1
+                    self?.isPaging = true
+                }
+            } failureCompletion: { error in
+                DispatchQueue.main.async {
+                    print(error.rawValue)
+                }
+            }
+        }
     }
     
     //MARK: - SetupNavigationBar
     
     private func setupNavigationBar() {
+        
         let titleLabel = UILabel(text: "TheBestApp",
                                  font: UIFont.boldSystemFont(ofSize: 22),
                                  color: #colorLiteral(red: 1, green: 1, blue: 1, alpha: 1),
                                  line: 0)
         
         searchController.searchBar.placeholder = "Search"
+        searchController.searchBar.delegate = self
         navigationItem.searchController = searchController
         navigationItem.rightBarButtonItem = sortBarButtonItem
         navigationItem.leftBarButtonItem = UIBarButtonItem.init(customView: titleLabel)
@@ -91,13 +124,36 @@ class MainViewController: UIViewController {
         navigationController?.navigationBar.standardAppearance.backgroundColor = #colorLiteral(red: 0.1599434614, green: 0.165407896, blue: 0.1891466677, alpha: 1)
         navigationController?.navigationBar.scrollEdgeAppearance?.backgroundColor = #colorLiteral(red: 0.1599434614, green: 0.165407896, blue: 0.1891466677, alpha: 1)
     }
+    
+    private func createSortMethod(_ completion: @escaping (Items, Items) -> Bool) -> UIAction {
+        
+        return UIAction() { [weak self] action in
+            if let viewModel = self?.viewModel {
+                viewModel.sortedItems = viewModel.sortedItems.sorted(by: {
+                    completion($0, $1)
+                })
+                DispatchQueue.main.async {
+                    self?.collectionView.reloadData()
+                }
+            }
+        }
+    }
 
     @objc private func sortBarButtonTapped(sender: UIBarButtonItem) {
         
         let alertController = UIAlertController(title: "", message: "Choose the sorting method:", preferredStyle: .actionSheet)
         let sortName = UIAlertAction(title: "Name", style: .default) { (action) in
+            _ = self.createSortMethod({ lhs, rhs in
+                lhs.title! < rhs.title!
+            })
+            self.collectionView.reloadData()
         }
+        
         let sortDate = UIAlertAction(title: "Date", style: .default) { (action) in
+            _ = self.createSortMethod({ lhs, rhs in
+                lhs.published! < rhs.published!
+            })
+            self.collectionView.reloadData()
         }
         
         let cancel = UIAlertAction(title: "Cancel", style: .cancel) { (action) in
@@ -114,34 +170,65 @@ class MainViewController: UIViewController {
 extension MainViewController: UICollectionViewDataSource {
     
     func numberOfSections(in collectionView: UICollectionView) -> Int {
-       return searchResults.count
-   }
+        if let viewModel = viewModel {
+            return viewModel.sortedItems.count
+        } else {
+            return 0
+        }
+    }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return searchResults[section].searchResults.count
+        
+        if let viewModel = viewModel {
+            return viewModel.sortedItems.count
+        } else {
+            return 0
+        }
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: idCollectionView, for: indexPath) as?
-                MainCollectionViewCell else {return UICollectionViewCell()}
-        let flickrPhoto = photo(for: indexPath)
-        cell.cellConfigure(model: flickrPhoto)
+        
+        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: idCollectionView, for: indexPath) as? MainCollectionViewCell else {return UICollectionViewCell()}
+        
+        if let viewModel = viewModel {
+            cell.configure(viewModel.sortedItems[indexPath.row])
+        }
         return cell
     }
 }
 
 //MARK: - UICollectionViewDelegate
 
+extension MainViewController: UIScrollViewDelegate {
+
+    public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        let position = scrollView.contentOffset.y
+
+        if position > self.collectionView.contentSize.height - 200 - scrollView.frame.size.height {
+
+            if isPaging {
+                isPaging = false
+                if counter == tagsArray.count {
+                    return
+                }
+                loadMoreData()
+            }
+        }
+    }
+}
+
 extension MainViewController: UICollectionViewDelegate {
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         
-        let photo = photo(for: indexPath)
-        let detailsViewController = DetailsViewController()
-        
-        detailsViewController.userImageView.image = photo.thumbnail
-        detailsViewController.title = photo.title
-        navigationController?.pushViewController(detailsViewController, animated: true)
+        if let viewModel = viewModel {
+            let item = viewModel.items[indexPath.row]
+    
+            let detailsViewController = DetailsViewController()
+            detailsViewController.item = item
+            
+            navigationController?.pushViewController(detailsViewController, animated: true)
+        }
     }
 }
 
@@ -161,23 +248,32 @@ extension MainViewController: UICollectionViewDelegateFlowLayout {
 extension MainViewController: UISearchBarDelegate {
     
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        self.tagsArray = searchBar.text!.components(separatedBy: " ")
         
-        flickrModel.searchFlickr(for: searchText) { searchResults in
-            DispatchQueue.main.async {
-                
-                switch searchResults {
-                case .failure(let error):
-                    print("Error searching: \(error)")
-                case .success(let results):
-                    print("""
-                    Found \(results.searchResults.count) \
-                    matching \(results.searchTerm)
-                    """)
-                    self.searchResults.insert(results, at: 0)
-                    self.collectionView.reloadData()
-                }
-            }
+        if searchText.isEmpty {
+            self.view.endEditing(true)
+            return
         }
+    }
+    
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        removeAllAndReload()
+    }
+    
+    func searchBarShouldEndEditing(_ searchBar: UISearchBar) -> Bool {
+        true
+    }
+    
+    func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
+        if !searchBar.text!.isEmpty {
+            return
+        }
+        removeAllAndReload()
+    }
+    
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        self.view.endEditing(true)
+        loadMoreData()
     }
 }
 

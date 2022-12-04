@@ -17,7 +17,6 @@ class MainCollectionViewCell: UICollectionViewCell {
     
     private let dateLabel: UILabel = {
         let label = UILabel()
-        label.text = "Date"
         label.textColor = .white
         label.contentMode = .center
         label.numberOfLines = 1
@@ -38,7 +37,6 @@ class MainCollectionViewCell: UICollectionViewCell {
     
     private let nameListTagsLabel: UILabel = {
         let label = UILabel()
-        label.text = "NameListTagsLabel"
         label.textColor = .white
         label.contentMode = .center
         label.numberOfLines = 1
@@ -46,6 +44,12 @@ class MainCollectionViewCell: UICollectionViewCell {
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
+    
+    private var imageCache = NSCache<AnyObject, AnyObject>()
+    
+    override func prepareForReuse() {
+        userImageView.image = nil
+    }
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -69,9 +73,20 @@ class MainCollectionViewCell: UICollectionViewCell {
         addSubview(nameListTagsLabel)
     }
     
-    func cellConfigure(model: FlickrModel) {
-        userImageView.image = model.thumbnail
-        nameLabel.text = model.title
+    func configure(_ item: Items) {
+        
+        guard
+            let title = item.title,
+            let date = item.published,
+            let tags = item.tags,
+            let imageUrl = item.media?.m
+        else { return }
+        
+        self.nameLabel.text = "Title: \(title)"
+        self.dateLabel.text = "Date: \(date.returnHumanReadableDate())"
+        self.nameListTagsLabel.text = "Tags: \(tags)"
+        self.userImageView.downloadImageWith(imageCache: imageCache, urlString: imageUrl) {
+        }
     }
 }
     
